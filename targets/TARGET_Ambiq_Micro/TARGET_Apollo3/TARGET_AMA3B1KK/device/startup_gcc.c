@@ -110,6 +110,9 @@ extern void mbed_init(void);
 //
 //*****************************************************************************
 extern int main(void);
+extern void ap3_reloc_vector_table(void){
+    // Do we need to do anything to relocate our vector table? Why would we?
+}
 
 // '__stack' accesses the linker-provided address for the start of the stack 
 // (which is a high address - stack goes top to bottom)
@@ -264,52 +267,12 @@ Reset_Handler(void)
           "isb\n");
 #endif
 
-    // // Start mbed boot sequence https://os.mbed.com/docs/mbed-os/v5.15/reference/bootstrap.html
-    // SystemInit();
-    // // __main();
-    // // _start();
-    // mbed_init();
-
-
-    //
-    // Copy the data segment initializers from flash to SRAM.
-    //
-    __asm("    ldr     r0, =__etext\n"
-          "    ldr     r1, =__data_start__\n"
-          "    ldr     r2, =__data_end__\n"
-          "copy_loop:\n"
-          "        cmp   r1, r2\n"
-          "        beq   copy_end\n"
-          "        ldr   r3, [r0], #4\n"
-          "        str   r3, [r1], #4\n"
-          "        b     copy_loop\n"
-          "copy_end:\n");
-    
-    //
-    // Zero fill the bss segment.
-    //
-    __asm("    ldr     r0, =__bss_start__\n"
-          "    ldr     r1, =__bss_end__\n"
-          "    mov     r2, #0\n"
-          "zero_loop:\n"
-          "        cmp     r0, r1\n"
-          "        it      lt\n"
-          "        strlt   r2, [r0], #4\n"
-          "        blt     zero_loop");
-
-    // //
-    // // Call Global Static Constructors for C++ support
-    // //
-    // extern void (*__init_array_start)(void);    // symbols must be
-    // extern void (*__init_array_end)(void);      // provided by linker
-    // for (void (**p)() = &__init_array_start; p < &__init_array_end; ++p) {  
-    //     (*p)();                                 // Call each function in the list
-    // }
-
-    //
-    // Call the application's entry point.
-    //
-    main();
+    __asm("ldr  r0, =SystemInit\n"
+          "blx  r0\n"
+          "ldr  r0, =ap3_reloc_vector_table\n"
+          "blx  r0\n"
+          "ldr  r0, =_start\n"
+          "blx  r0\n");
 
     //
     // If main returns then execute a break point instruction
